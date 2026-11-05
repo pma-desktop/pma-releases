@@ -1,0 +1,74 @@
+name: Publish PMA
+run-name: Publish PMA ${{ inputs.version }} (${{ inputs.staging_tag }})
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish, such as 0.3.4
+        required: true
+        type: string
+      staging_tag:
+        description: Private draft upload identifier
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: pma-release-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ inputs.version }}
+      STAGING: ${{ inputs.staging_tag }}
+    steps:
+      - name: Validate and download private draft
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$STAGING" =~ ^staging-v[0-9]+\.[0-9]+\.[0-9]+-[a-f0-9]{12}$ ]]
+          [[ "$STAGING" == "staging-v$VERSION-"* ]]
+          [[ "$(gh release view "$STAGING" --json isDraft --jq .isDraft)" == true ]]
+          mkdir release
+          gh release download "$STAGING" --dir release
+      - name: Check public file allowlist and package digest
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, json, base64, hashlib
+          from pathlib import Path
+          root=Path('release');version=os.environ['VERSION']
+          package=f'PMA-{version}.films-update'
+          expected={'PMA.exe','PMA-Setup.exe',package,'latest.json','release-notes.md'}
+          assert {p.name for p in root.iterdir()}==expected
+          assert all(p.is_file() and not p.is_symlink() for p in root.iterdir())
+          envelope=json.loads((root/'latest.json').read_text())
+          data=json.loads(base64.b64decode(envelope['payload'],validate=True))
+          assert data['version']==version and data['appId']=='local.kadr.cinema'
+          assert data['platform']=='windows-x86_64'
+          assert data['packageUrl']==f"https://github.com/{os.environ['GH_REPO']}/releases/download/v{version}/{package}"
+          binary=(root/package).read_bytes()
+          assert len(binary)==data['packageSize']
+          assert hashlib.sha256(binary).hexdigest()==data['packageSha256']
+          PY
+      - name: Publish release as GitHub Actions bot
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo 'This version already exists; refusing to replace it.' >&2
+            exit 1
+          fi
+          gh release create "v$VERSION" \
+            release/PMA.exe release/PMA-Setup.exe \
+            "release/PMA-$VERSION.films-update" release/latest.json \
+            --draft --title "PMA $VERSION" --notes-file release/release-notes.md
+          gh release delete "$STAGING" --yes
+          if gh api "repos/$GH_REPO/git/ref/tags/$STAGING" >/dev/null 2>&1; then
+            gh api --method DELETE "repos/$GH_REPO/git/refs/tags/$STAGING"
+          fi
+          gh release edit "v$VERSION" --draft=false --latest
