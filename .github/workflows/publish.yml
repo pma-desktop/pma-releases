@@ -39,19 +39,13 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, json, base64, hashlib, zipfile
+          import os, json, base64, hashlib
           from pathlib import Path
           root=Path('release');version=os.environ['VERSION']
           package=f'PMA-{version}.films-update'
-          source=f'PMA-{version}-source.zip'
-          expected={'PMA.exe','PMA-Setup.exe',package,source,'latest.json','release-notes.md'}
+          expected={'PMA.exe','PMA-Setup.exe',package,'latest.json','release-notes.md'}
           assert {p.name for p in root.iterdir()}==expected
           assert all(p.is_file() and not p.is_symlink() for p in root.iterdir())
-          with zipfile.ZipFile(root/source) as archive:
-            names=archive.namelist()
-            forbidden={'.git','.tools','node_modules','target','artifacts','PMA Auto Backups'}
-            assert 'SOURCE-SNAPSHOT.txt' in names
-            assert all(not Path(n).is_absolute() and '..' not in Path(n).parts and not forbidden.intersection(Path(n).parts) for n in names)
           envelope=json.loads((root/'latest.json').read_text())
           data=json.loads(base64.b64decode(envelope['payload'],validate=True))
           assert data['version']==version and data['appId']=='local.kadr.cinema'
@@ -71,7 +65,7 @@ jobs:
           fi
           gh release create "v$VERSION" \
             release/PMA.exe release/PMA-Setup.exe \
-            "release/PMA-$VERSION.films-update" "release/PMA-$VERSION-source.zip" release/latest.json \
+            "release/PMA-$VERSION.films-update" release/latest.json \
             --draft --title "PMA $VERSION" --notes-file release/release-notes.md
           gh release delete "$STAGING" --yes
           if gh api "repos/$GH_REPO/git/ref/tags/$STAGING" >/dev/null 2>&1; then
