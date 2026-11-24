@@ -4,7 +4,7 @@ PMA — личный кинодневник для Windows. В нём можно
 
 **[Скачать PMA для Windows x64](https://github.com/pma-desktop/pma-releases/releases/latest)** · [Все выпуски](https://github.com/pma-desktop/pma-releases/releases) · [Как работают рекомендации](RECOMMENDATIONS.md)
 
-Текущая версия — [PMA 0.9.1](https://github.com/pma-desktop/pma-releases/releases/tag/v0.9.1).
+Текущая версия — [PMA 0.9.5](https://github.com/pma-desktop/pma-releases/releases/tag/v0.9.5).
 
 ## Что можно делать в PMA
 
@@ -20,6 +20,7 @@ PMA — личный кинодневник для Windows. В нём можно
 - **`PMA-Setup.exe`** устанавливает приложение и добавляет ярлык в меню «Пуск».
 - **`PMA.exe`** запускает приложение без установки.
 - **`PMA-<версия>.films-update`** обновляет установленное приложение через «Настройки → Обновления → Из файла».
+- **`PMA-<версия>-source.zip`** содержит исходный код соответствующего выпуска.
 
 Для обычного обновления откройте **Настройки → Обновления → Проверить обновления**. PMA проверит подпись пакета и перед установкой сохранит резервную копию коллекции и черновиков.
 
